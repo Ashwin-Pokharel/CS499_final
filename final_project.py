@@ -35,6 +35,9 @@ from torchvision.models.detection import FasterRCNN
 from torch.utils.data import DataLoader, Dataset
 import uuid
 import gc
+from tqdm import tqdm
+from tqdm import trange
+from time import sleep
 
 
 
@@ -338,8 +341,8 @@ def main():
         return tuple(zip(*batch))
 
 
-    train_data_loader = DataLoader(train_dataset , batch_size = 15 , shuffle = True , num_workers = 0 , collate_fn = collate_fn)
-    device = torch.device('cpu') if torch.cuda.is_available() else torch.device('cpu')
+    train_data_loader = DataLoader(train_dataset , batch_size = 1 , shuffle = True , num_workers = 0 , collate_fn = collate_fn)
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
 
     # In[17]:
@@ -378,7 +381,7 @@ def main():
     params = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.SGD(params, lr=0.005, momentum=0.9, weight_decay=0.0005)
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
-    num_epochs = 20
+    num_epochs = 10
 
 
     # In[ ]:
@@ -387,28 +390,30 @@ def main():
     itr = 1
     for epoch in range(num_epochs):
         loss_value = 0
-        print(epoch)
-        counter = 0
-        for images , targets in train_data_loader:
-            print("counter : {0}".format(counter))
-            images = list(image.to(device) for image in images)
-            targets = [{k: v.to(device) for k , v in t.items()} for t in targets]
-            print(np.array(targets).shape)
-            loss_dict = model(images , targets)
-            losses = sum(loss for loss in loss_dict.values())
-            loss_value = losses.item()
+        with tqdm(train_data_loader , unit="batch") as tepoch:
+            for images , targets in tepoch:
+                tepoch.set_description("epoch: {0}".format(epoch))
+                images = list(image.to(device) for image in images)
+                targets = [{k: v.to(device) for k , v in t.items()} for t in targets]
+                loss_dict = model(images , targets)
+                losses = sum(loss for loss in loss_dict.values())
+                loss_value = losses.item()
 
-            optimizer.zero_grad() #reset for each epoch
-            losses.backward()
-            optimizer.step()
+                optimizer.zero_grad() #reset for each epoch
+                losses.backward()
+                optimizer.step()
+                """
+                if itr % 50 == 0:
+                    print(f"Iteration #{itr} loss:{loss_value}")
+                    p
+                itr += 1
+                """
+                
+                lr_scheduler.step()
+                tepoch.set_postfix(loss=losses.item())
+                sleep(0.1)
 
-            if itr % 50 == 0:
-                print(f"Iteration #{itr} loss:{loss_value}")
-            itr += 1
-            
-            lr_scheduler.step()
-
-        print("Epuch #{0} loss: {1}".format(epoch , loss_value))
+        #print("Epuch #{0} loss: {1}".format(epoch , loss_value))
 
     torch.save(model.save_dict() , 'model.pth')
     torch.save({
