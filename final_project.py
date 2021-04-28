@@ -313,8 +313,8 @@ def main():
             boxes = records[['x1', 'y1', 'x2', 'y2']].values
             boxes = torch.as_tensor(boxes , dtype=torch.float32)
             labels = records[['label']].values
-            labels = [[label.index(x)+1 for x in j] for j in labels]
-            labels = torch.as_tensor(labels , dtype=torch.int64)
+            labels = [[label.index(x)for x in j] for j in labels]
+            labels = torch.as_tensor(labels , dtype=torch.int64).reshape((len(labels),))
 
             target = {}
             target['boxes'] = boxes
@@ -338,7 +338,7 @@ def main():
         return tuple(zip(*batch))
 
 
-    train_data_loader = DataLoader(train_dataset , batch_size = 15 , shuffle = True , num_workers = 1 , collate_fn = collate_fn)
+    train_data_loader = DataLoader(train_dataset , batch_size = 15 , shuffle = True , num_workers = 0 , collate_fn = collate_fn)
     device = torch.device('cpu') if torch.cuda.is_available() else torch.device('cpu')
 
 
@@ -393,6 +393,7 @@ def main():
             print("counter : {0}".format(counter))
             images = list(image.to(device) for image in images)
             targets = [{k: v.to(device) for k , v in t.items()} for t in targets]
+            print(np.array(targets).shape)
             loss_dict = model(images , targets)
             losses = sum(loss for loss in loss_dict.values())
             loss_value = losses.item()
