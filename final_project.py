@@ -314,7 +314,7 @@ def main():
             boxes = torch.as_tensor(boxes , dtype=torch.float32)
             labels = records[['label']].values
             labels = [[label.index(x)+1 for x in j] for j in labels]
-            labels = torch.as_tensor(labels , dtype=torch.float32)
+            labels = torch.as_tensor(labels , dtype=torch.int64)
 
             target = {}
             target['boxes'] = boxes
@@ -367,8 +367,8 @@ def main():
 
 
     torch.cuda.empty_cache()
-    model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=False) #use the resnet50_fpn (a feature pyramid network as the basis of this fasterrcnn model)
-    model.to(device)
+    model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=False , num_classes=4, progress=True)
+    model.to(device) #use the resnet50_fpn (a feature pyramid network as the basis of this fasterrcnn model)
     #using an untrained backbone rather than a pre-trained one for testing.
 
 
@@ -376,8 +376,8 @@ def main():
 
 
     params = [p for p in model.parameters() if p.requires_grad]
-    optimizer = torch.optim.Adam(params)
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer , step_size=3 , gamma=0.1)
+    optimizer = torch.optim.SGD(params, lr=0.005, momentum=0.9, weight_decay=0.0005)
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
     num_epochs = 20
 
 
@@ -388,12 +388,14 @@ def main():
     for epoch in range(num_epochs):
         loss_value = 0
         print(epoch)
+        counter = 0
         for images , targets in train_data_loader:
-
+            print("counter : {0}".format(counter))
             images = list(image.to(device) for image in images)
             targets = [{k: v.to(device) for k , v in t.items()} for t in targets]
             loss_dict = model(images , targets)
             losses = sum(loss for loss in loss_dict.values())
+            loss_value = losses.item()
 
             optimizer.zero_grad() #reset for each epoch
             losses.backward()
