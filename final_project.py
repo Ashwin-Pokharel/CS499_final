@@ -415,7 +415,7 @@ def main():
 
         #print("Epuch #{0} loss: {1}".format(epoch , loss_value))
 
-    torch.save(model.save_dict() , 'model.pth')
+    torch.save(model , './')
     torch.save({
         'epoch': epoch,
         'model_state_dict': model.state_dict(),
